@@ -137,3 +137,77 @@ print("bwt:", test_bwt)
 print("inverse_bwt:", inverse_bwt(test_bwt))
 print("first_occurrence:", first_occurrence(test_bwt))
 
+
+
+# TASK 3 - The FMIndex class
+
+class FMIndex:
+    def __init__(self, text, s):
+        self.s = s
+        full_sa = suffix_array(text)
+        self.bwt = bwt(text, full_sa)
+        self.first_occ = first_occurrence(self.bwt)
+
+        # Keep suffix array position only if it is divisible by s
+        self.sampled = {}
+        for row, pos in enumerate(full_sa):
+            if pos % s == 0:
+                self.sampled[row] = pos
+
+    def lf(self, row):
+        # LF-mapping: move from column L to column F
+        char = self.bwt[row]
+        k = self.bwt[:row].count(char)
+        return self.first_occ[char] + k
+
+    def count(self, p):
+        # Backward search for pattern p: interval [top, bottom)
+        top = 0
+        bottom = len(self.bwt)
+
+        # Read pattern backwards from right to left
+        for char in reversed(p):
+            if char not in self.first_occ:
+                return top, top
+
+            # Update rows using LF logic
+            top = self.first_occ[char] + self.bwt[:top].count(char)
+            bottom = self.first_occ[char] + self.bwt[:bottom].count(char)
+
+            if top >= bottom:
+                return top, top
+
+        return top, bottom
+
+    def locate(self, p):
+        # Find start positions of pattern p in the text
+        top, bottom = self.count(p)
+        if top >= bottom:
+            return []
+
+        positions = []
+        for row in range(top, bottom):
+            curr_row = row
+            steps = 0
+
+            # Follow LF steps until we find a sampled position
+            while curr_row not in self.sampled:
+                curr_row = self.lf(curr_row)
+                steps += 1
+
+            positions.append(self.sampled[curr_row] + steps)
+
+        return sorted(positions)
+
+
+# SELF-CHECK
+test_text = "AAGGCGGCTTCA$"
+p = "GGC"
+fm = FMIndex(test_text, 2)
+
+# Verify count and locate against our results from Task 1
+assert fm.count(p) == (9, 11)
+assert fm.locate(p) == [2, 5]
+
+print("fm.count('GGC'):", fm.count(p))
+print("fm.locate('GGC'):", fm.locate(p))
