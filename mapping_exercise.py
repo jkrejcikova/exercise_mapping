@@ -211,3 +211,60 @@ assert fm.locate(p) == [2, 5]
 
 print("fm.count('GGC'):", fm.count(p))
 print("fm.locate('GGC'):", fm.locate(p))
+
+
+# TASK 4 - Mapping reads
+
+def count_mismatches(s1, s2):
+    # Count how many characters differ between two strings
+    mismatches = 0
+    for a, b in zip(s1, s2):
+        if a != b:
+            mismatches += 1
+    return mismatches
+
+
+def query_approximate(fm, text, p, k):
+    # Return all start positions in text where p matches with at most k mismatches
+    m = len(p)
+    n = len(text)
+    num_seeds = k + 1
+    seed_len = m // num_seeds
+
+    matches = set()
+
+    for i in range(num_seeds):
+        # Calculate start and end index for i-th seed piece
+        start = i * seed_len
+        if i == num_seeds - 1:
+            end = m  # last piece takes the rest of the pattern
+        else:
+            end = (i + 1) * seed_len
+
+        seed = p[start:end]
+
+        # Find exact matches of the seed using FMIndex
+        for pos in fm.locate(seed):
+            # Candidate start position for the whole pattern in text
+            cand_start = pos - start
+
+            # Skip candidates that fall outside text boundaries
+            if cand_start < 0 or cand_start + m > n:
+                continue
+
+            # Compare the candidate substring with pattern p
+            sub = text[cand_start:cand_start + m]
+            if count_mismatches(sub, p) <= k:
+                matches.add(cand_start)
+
+    return sorted(matches)
+
+
+# SELF-CHECK
+test_text = "AAGGCGGCTTCA$"
+fm = FMIndex(test_text, 2)
+
+results = query_approximate(fm, test_text, "GGT", 1)
+print("query_approximate('GGT', k=1):", results)
+
+assert results == [2, 5, 6]
